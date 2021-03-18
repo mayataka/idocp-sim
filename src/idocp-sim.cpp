@@ -67,7 +67,7 @@ void idocpSim::runSim(const double simulation_time_in_sec,
   auto rai_ground = rai_world.addGround();
   rai_world.setTimeStep(sampling_period_in_sec);
   rai_world.setERP(0.2, 0.2);
-  rai_world.setDefaultMaterial(1000, 0, 0);
+  // rai_world.setDefaultMaterial(1000, 0, 0);
   auto rai_vis = raisim::OgreVis::get();
   if (visualization) {
     rai_vis->setWorld(&rai_world);

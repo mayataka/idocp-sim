@@ -34,6 +34,8 @@ void pin2rai(const pinocchio::Model& pin_model, pinocchio::Data& pin_data,
   q_rai.coeffRef(17) = q_pin.coeff(17);
   q_rai.coeffRef(18) = q_pin.coeff(18);
   pinocchio::framesForwardKinematics(pin_model, pin_data, q_pin);
+  // v_rai.template segment<6>(0)
+  //     = pin_data.oMf[2].act(v_pin.template segment<6>(0)).toVector();
   v_rai.template segment<3>(0).noalias()
       = pin_data.oMf[2].rotation() * v_pin.template segment<3>(0);
   v_rai.template segment<3>(3).noalias() 
@@ -99,6 +101,8 @@ void rai2pin(const pinocchio::Model& pin_model, pinocchio::Data& pin_data,
   q_pin.coeffRef(17) = q_rai.coeff(17);
   q_pin.coeffRef(18) = q_rai.coeff(18);
   pinocchio::framesForwardKinematics(pin_model, pin_data, q_pin);
+  // v_pin.template segment<6>(0)
+  //     = pin_data.oMf[2].actInv(v_rai.template segment<6>(0)).toVector();
   v_pin.template segment<3>(0).noalias()
       = pin_data.oMf[2].rotation().transpose() * v_rai.template segment<3>(0);
   v_pin.template segment<3>(3).noalias() 

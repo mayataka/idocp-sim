@@ -25,13 +25,17 @@ class MPCCallback : public idocp::sim::MPCCallbackBase {
 public:
   MPCCallback(const idocp::Robot& robot, const idocp::OCPSolver& ocp_solver)
     : robot_(robot),
+      contact_status_(robot.createContactStatus()),
+      contact_points_(robot.maxPointContacts(), Eigen::Vector3d::Zero()),
       ocp_solver_(ocp_solver) {
+    contact_status_.activateContacts({0, 1, 2, 3});
   }
 
   ~MPCCallback() {}
 
   void init(const double t, const Eigen::VectorXd& q_pin, 
             const Eigen::VectorXd& v_pin) {
+    setContactPointsToOCPSolver(q_pin);
     const int max_iter = 100;
     for (int i=0; i<max_iter; ++i) {
       ocp_solver_.updateSolution(t, q_pin, v_pin);
@@ -41,13 +45,14 @@ public:
   void updateControlInput(const double t, const Eigen::VectorXd& q_pin,
                           const Eigen::VectorXd& v_pin,
                           Eigen::VectorXd& u_pin) override {
+    setContactPointsToOCPSolver(q_pin);
     ocp_solver_.updateSolution(t, q_pin, v_pin);
     u_pin = ocp_solver_.getSolution(0).u;
   }
 
-
   void computeKKTResidual(const double t, const Eigen::VectorXd& q_pin,
                           const Eigen::VectorXd& v_pin) override {
+    setContactPointsToOCPSolver(q_pin);
     ocp_solver_.computeKKTResidual(t, q_pin, v_pin);
   }
 
@@ -56,9 +61,20 @@ public:
     return ocp_solver_.KKTError();
   }
 
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
 private:
   idocp::Robot robot_;
+  idocp::ContactStatus contact_status_;
+  std::vector<Eigen::Vector3d> contact_points_;
   idocp::OCPSolver ocp_solver_;
+
+  void setContactPointsToOCPSolver(const Eigen::VectorXd& q_pin) {
+    robot_.updateFrameKinematics(q_pin);
+    robot_.getContactPoints(contact_points_);
+    contact_status_.setContactPoints(contact_points_);
+    ocp_solver_.setContactStatusUniformly(contact_status_);
+  }
 
 };
 
@@ -76,23 +92,23 @@ int main(int argc, char *argv[]) {
                  0.1,  0.7,   -1.0, 
                  0.1, -0.7,    1.0;
   Eigen::VectorXd q_weight(Eigen::VectorXd::Zero(robot.dimv()));
-  q_weight << 1000, 1000, 1000, 10000, 10000, 10000, 
+  q_weight << 1000, 1000, 1000, 1000, 1000, 1000, 
               1, 1, 1,
               1, 1, 1,
               1, 1, 1,
               1, 1, 1;
   Eigen::VectorXd v_weight(Eigen::VectorXd::Zero(robot.dimv()));
-  v_weight << 0.01, 0.01, 0.01, 0.1, 0.1, 0.1, 
+  v_weight << 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 
               0.1, 0.1, 0.1,
               0.1, 0.1, 0.1,
               0.1, 0.1, 0.1,
               0.1, 0.1, 0.1;
   Eigen::VectorXd a_weight(Eigen::VectorXd::Zero(robot.dimv()));
-  a_weight << 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 
-              0.01, 0.01, 0.01,
-              0.01, 0.01, 0.01,
-              0.01, 0.01, 0.01,
-              0.01, 0.01, 0.01;
+  a_weight << 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 
+              0.001, 0.001, 0.001,
+              0.001, 0.001, 0.001,
+              0.001, 0.001, 0.001,
+              0.001, 0.001, 0.001;
 
   auto config_cost = std::make_shared<idocp::ConfigurationSpaceCost>(robot);
   Eigen::VectorXd q_ref = q_standing;
@@ -133,17 +149,18 @@ int main(int argc, char *argv[]) {
   const int nthreads = 4;
   const double t = 0;
 
+  const Eigen::VectorXd q = q_standing;
+  const Eigen::VectorXd v = Eigen::VectorXd::Zero(robot.dimv());
+
+  idocp::OCPSolver ocp_solver(robot, cost, constraints, T, N, max_num_impulse_phase, nthreads);
+
   robot.updateFrameKinematics(q_standing);
   std::vector<Eigen::Vector3d> contact_points(robot.maxPointContacts(), Eigen::Vector3d::Zero());
   robot.getContactPoints(contact_points);
   auto contact_status = robot.createContactStatus();
   contact_status.activateContacts({0, 1, 2, 3});
   contact_status.setContactPoints(contact_points);
-
-  const Eigen::VectorXd q = q_standing;
-  const Eigen::VectorXd v = Eigen::VectorXd::Zero(robot.dimv());
-
-  idocp::OCPSolver ocp_solver(robot, cost, constraints, T, N, max_num_impulse_phase, nthreads);
+  ocp_solver.setContactStatusUniformly(contact_status);
 
   ocp_solver.setSolution("q", q);
   ocp_solver.setSolution("v", v);
@@ -152,14 +169,19 @@ int main(int argc, char *argv[]) {
   ocp_solver.setSolution("f", f_init);
   ocp_solver.initConstraints(t);
 
+  if (argc != 3) {
+    std::cout << "argment must be: ./posture PAHT_TO_RAISIM_ACTIVATION_KEY PATH_TO_URDF_FOR_RAISIM" << std::endl;
+    std::exit(1);
+  }
+
   const std::string path_to_raisim_activation_key = argv[1];
-  const std::string path_to_urdf_sim = "../anymal_b_simple_description/urdf_sim/anymal.urdf";
+  const std::string path_to_urdf_sim = argv[2];
   const std::string path_to_log = "sim_results";
   const std::string sim_name = "posture";
-  idocp::sim::idocpSim sim(path_to_raisim_activation_key, path_to_urdf, path_to_log, sim_name);
+  idocp::sim::idocpSim sim(path_to_raisim_activation_key, path_to_urdf_sim, path_to_log, sim_name);
   sim.setCallback(std::make_shared<MPCCallback>(robot, ocp_solver));
   const double simulation_time_in_sec = 5;
-  const double sampling_period_in_sec = 0.025;
+  const double sampling_period_in_sec = 0.0025;
   const double simulation_start_time_in_sec = 0;
   const bool visualization = true;
   const bool recording = false;
