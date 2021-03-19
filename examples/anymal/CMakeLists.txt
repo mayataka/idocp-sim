@@ -3,6 +3,7 @@ find_package(idocp REQUIRED)
 add_executable(
     posture
     posture.cpp
+    posture_cost.cpp
 )
 target_include_directories(
     posture

@@ -66,20 +66,20 @@ void idocpSim::runSim(const double simulation_time_in_sec,
   auto rai_robot = rai_world.addArticulatedSystem(path_to_urdf_, "");
   auto rai_ground = rai_world.addGround();
   rai_world.setTimeStep(sampling_period_in_sec);
-  rai_world.setERP(0.2, 0.2);
-  // rai_world.setDefaultMaterial(1000, 0, 0);
+  rai_world.setERP(0.02, 0.);
+  rai_world.setDefaultMaterial(0.9, 0, 0);
   auto rai_vis = raisim::OgreVis::get();
   if (visualization) {
     rai_vis->setWorld(&rai_world);
     rai_vis->setSetUpCallback(setupRaiVisCallback);
     rai_vis->setAntiAliasing(2);
-    rai_vis->setWindowSize(500, 400);
+    rai_vis->setWindowSize(2400, 1600);
     rai_vis->setContactVisObjectSize(0.025, 0.01); 
     rai_vis->initApp();
     rai_vis->createGraphicalObject(rai_ground, 20, "floor", "checkerboard_green");
     rai_vis->createGraphicalObject(rai_robot, "ANYmal");
     const double scaled_position = 0.6;
-    rai_vis->getCameraMan()->getCamera()->setPosition(-3.5*scaled_position, 
+    rai_vis->getCameraMan()->getCamera()->setPosition(3.5*scaled_position, 
                                                       -3.5*scaled_position, 
                                                       2*scaled_position);
     rai_vis->getCameraMan()->getCamera()->rotate(Ogre::Vector3(1.0, 0, 0), 
@@ -90,6 +90,9 @@ void idocpSim::runSim(const double simulation_time_in_sec,
                                                  Ogre::Radian(0.5));
     rai_vis->getCameraMan()->getCamera()->rotate(Ogre::Vector3(0, 0, -1.0), 
                                                  Ogre::Radian(0.2));
+    rai_vis->getCameraMan()->getCamera()->rotate(Ogre::Vector3(0.0, 0.0, 1.0), 
+                                                 Ogre::Radian(M_PI_2),
+                                                 Ogre::Node::TransformSpace::TS_WORLD);
   }
   Eigen::VectorXd q_pin = q_pin_ini;
   Eigen::VectorXd v_pin = v_pin_ini;
@@ -150,7 +153,7 @@ void idocpSim::setupRaiVisCallback() {
   /// light
   rai_vis->getLight()->setDiffuseColour(1, 1, 1);
   rai_vis->getLight()->setCastShadows(true);
-  Ogre::Vector3 lightdir(-3,3,-0.5);
+  Ogre::Vector3 lightdir(-3, 3, -0.5);
   lightdir.normalise();
   rai_vis->getLightNode()->setDirection({lightdir});
   rai_vis->setCameraSpeed(300);

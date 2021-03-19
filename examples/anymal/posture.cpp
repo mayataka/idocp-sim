@@ -8,6 +8,7 @@
 #include "idocp/ocp/ocp_solver.hpp"
 #include "idocp/cost/cost_function.hpp"
 #include "idocp/cost/configuration_space_cost.hpp"
+#include "idocp/cost/time_varying_configuration_space_cost.hpp"
 #include "idocp/constraints/constraints.hpp"
 #include "idocp/constraints/joint_position_lower_limit.hpp"
 #include "idocp/constraints/joint_position_upper_limit.hpp"
@@ -16,9 +17,10 @@
 #include "idocp/constraints/joint_torques_lower_limit.hpp"
 #include "idocp/constraints/joint_torques_upper_limit.hpp"
 #include "idocp/constraints/linearized_friction_cone.hpp"
-#include "idocp/constraints/linearized_impulse_friction_cone.hpp"
 
 #include "idocp-sim/idocp-sim.hpp"
+
+#include "posture_cost.hpp"
 
 
 class MPCCallback : public idocp::sim::MPCCallbackBase {
@@ -92,23 +94,11 @@ int main(int argc, char *argv[]) {
                  0.1,  0.7,   -1.0, 
                  0.1, -0.7,    1.0;
   Eigen::VectorXd q_weight(Eigen::VectorXd::Zero(robot.dimv()));
-  q_weight << 1000, 1000, 1000, 1000, 1000, 1000, 
-              1, 1, 1,
-              1, 1, 1,
-              1, 1, 1,
-              1, 1, 1;
-  Eigen::VectorXd v_weight(Eigen::VectorXd::Zero(robot.dimv()));
-  v_weight << 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 
-              0.1, 0.1, 0.1,
-              0.1, 0.1, 0.1,
-              0.1, 0.1, 0.1,
-              0.1, 0.1, 0.1;
-  Eigen::VectorXd a_weight(Eigen::VectorXd::Zero(robot.dimv()));
-  a_weight << 0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 
-              0.001, 0.001, 0.001,
-              0.001, 0.001, 0.001,
-              0.001, 0.001, 0.001,
-              0.001, 0.001, 0.001;
+  Eigen::VectorXd v_weight(Eigen::VectorXd::Constant(robot.dimv(), 1.0e-04));
+  // Eigen::VectorXd a_weight(Eigen::VectorXd::Zero(robot.dimv(), 1.0e-04));
+  // Eigen::VectorXd a_weight(Eigen::VectorXd::Zero(robot.dimv(), 1.0e-05));
+  // Eigen::VectorXd a_weight(Eigen::VectorXd::Zero(robot.dimv(), 1.0e-06));
+  Eigen::VectorXd a_weight(Eigen::VectorXd::Zero(robot.dimv(), 1.0e-08));
 
   auto config_cost = std::make_shared<idocp::ConfigurationSpaceCost>(robot);
   Eigen::VectorXd q_ref = q_standing;
@@ -123,6 +113,40 @@ int main(int argc, char *argv[]) {
   config_cost->set_q_ref(q_ref);
   cost->push_back(config_cost);
 
+  Eigen::VectorXd q_standing_ref = q_standing;
+  Eigen::VectorXd q_left = q_standing;
+  Eigen::VectorXd q_right = q_standing;
+  Eigen::VectorXd q_forward = q_standing;
+  // left
+  q_left(2) -= 0.1; // 
+  q_left(3) =  0.1;
+  q_left(5) = -0.165;
+  // right
+  q_right(2) -= 0.1; // 
+  q_right(3) =  -0.1;
+  q_right(5) = 0.165;
+  // forward
+  q_forward(2) -= 0.10;
+  q_forward(4)  = 0.10;
+
+  robot.normalizeConfiguration(q_left);
+  robot.normalizeConfiguration(q_right);
+  robot.normalizeConfiguration(q_forward);
+  auto posture_cost = std::make_shared<idocp::sim::PostureCost>(robot);
+  posture_cost->set_ref_standing(q_standing);
+  posture_cost->set_ref_left(q_forward);
+  posture_cost->set_ref_right(q_left);
+  posture_cost->set_ref_forward(q_right);
+  posture_cost->set_switch_time({1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0});
+  q_weight << 100, 100, 100, 100, 100, 100, 
+              0.01, 0.01, 0.01,
+              0.01, 0.01, 0.01,
+              0.01, 0.01, 0.01,
+              0.01, 0.01, 0.01;
+  posture_cost->set_q_weight(q_weight);
+  posture_cost->set_qf_weight(q_weight);
+  cost->push_back(posture_cost);
+
   auto constraints           = std::make_shared<idocp::Constraints>();
   auto joint_position_lower  = std::make_shared<idocp::JointPositionLowerLimit>(robot);
   auto joint_position_upper  = std::make_shared<idocp::JointPositionUpperLimit>(robot);
@@ -130,17 +154,17 @@ int main(int argc, char *argv[]) {
   auto joint_velocity_upper  = std::make_shared<idocp::JointVelocityUpperLimit>(robot);
   auto joint_torques_lower   = std::make_shared<idocp::JointTorquesLowerLimit>(robot);
   auto joint_torques_upper   = std::make_shared<idocp::JointTorquesUpperLimit>(robot);
-  const double mu = 0.7;
+  // const double mu = 0.7;
+  const double mu = 0.5;
   auto friction_cone         = std::make_shared<idocp::LinearizedFrictionCone>(robot, mu);
-  auto impulse_friction_cone = std::make_shared<idocp::LinearizedImpulseFrictionCone>(robot, mu);
   constraints->push_back(joint_position_lower);
   constraints->push_back(joint_position_upper);
   constraints->push_back(joint_velocity_lower);
   constraints->push_back(joint_velocity_upper);
   constraints->push_back(joint_torques_lower);
   constraints->push_back(joint_torques_upper);
-  // constraints->push_back(friction_cone);
-  // constraints->push_back(impulse_friction_cone);
+  constraints->push_back(friction_cone);
+  constraints->setBarrier(0.1);
 
   const double T = 1; 
   const int N = 20;
@@ -170,7 +194,7 @@ int main(int argc, char *argv[]) {
   ocp_solver.initConstraints(t);
 
   if (argc != 3) {
-    std::cout << "argment must be: ./posture PAHT_TO_RAISIM_ACTIVATION_KEY PATH_TO_URDF_FOR_RAISIM" << std::endl;
+    std::cout << "argment must be: ./posture APSOLUTE_PAHT_TO_RAISIM_ACTIVATION_KEY APSOLUTE_PATH_TO_URDF_FOR_RAISIM" << std::endl;
     std::exit(1);
   }
 
@@ -180,11 +204,12 @@ int main(int argc, char *argv[]) {
   const std::string sim_name = "posture";
   idocp::sim::idocpSim sim(path_to_raisim_activation_key, path_to_urdf_sim, path_to_log, sim_name);
   sim.setCallback(std::make_shared<MPCCallback>(robot, ocp_solver));
-  const double simulation_time_in_sec = 5;
+  // const double simulation_time_in_sec = 7;
+  const double simulation_time_in_sec = 9;
   const double sampling_period_in_sec = 0.0025;
   const double simulation_start_time_in_sec = 0;
   const bool visualization = true;
-  const bool recording = false;
+  const bool recording = true;
   sim.runSim(simulation_time_in_sec, sampling_period_in_sec, 
              simulation_start_time_in_sec, q, v, visualization, recording);
 
