@@ -94,11 +94,10 @@ int main(int argc, char *argv[]) {
                  0.1,  0.7,   -1.0, 
                  0.1, -0.7,    1.0;
   Eigen::VectorXd q_weight(Eigen::VectorXd::Zero(robot.dimv()));
-  Eigen::VectorXd v_weight(Eigen::VectorXd::Constant(robot.dimv(), 1.0e-04));
-  // Eigen::VectorXd a_weight(Eigen::VectorXd::Zero(robot.dimv(), 1.0e-04));
-  // Eigen::VectorXd a_weight(Eigen::VectorXd::Zero(robot.dimv(), 1.0e-05));
-  // Eigen::VectorXd a_weight(Eigen::VectorXd::Zero(robot.dimv(), 1.0e-06));
-  Eigen::VectorXd a_weight(Eigen::VectorXd::Zero(robot.dimv(), 1.0e-08));
+  Eigen::VectorXd v_weight(Eigen::VectorXd::Constant(robot.dimv(), 1.0e-03));
+  v_weight.head(6).fill(1.0e-01);
+  Eigen::VectorXd a_weight(Eigen::VectorXd::Zero(robot.dimv(), 1.0e-06));
+  a_weight.head(6).fill(1.0e-04);
 
   auto config_cost = std::make_shared<idocp::ConfigurationSpaceCost>(robot);
   Eigen::VectorXd q_ref = q_standing;
@@ -114,31 +113,37 @@ int main(int argc, char *argv[]) {
   cost->push_back(config_cost);
 
   Eigen::VectorXd q_standing_ref = q_standing;
+  Eigen::VectorXd q_forward = q_standing;
+  Eigen::VectorXd q_backward = q_standing;
   Eigen::VectorXd q_left = q_standing;
   Eigen::VectorXd q_right = q_standing;
-  Eigen::VectorXd q_forward = q_standing;
-  // left
-  q_left(2) -= 0.1; // 
-  q_left(3) =  0.1;
-  q_left(5) = -0.165;
-  // right
-  q_right(2) -= 0.1; // 
-  q_right(3) =  -0.1;
-  q_right(5) = 0.165;
   // forward
-  q_forward(2) -= 0.10;
-  q_forward(4)  = 0.10;
+  q_forward(2) -= 0.075;
+  q_forward(4)  = 0.085;
+  // backward
+  q_backward(2) -= 0.075;
+  q_backward(4)  = -0.085;
+  // left
+  q_left(2) -=  0.075;
+  q_left(5) =  -0.15;
+  // right
+  q_right(2) -=  0.075;
+  q_right(5) =  0.15;
 
+  robot.normalizeConfiguration(q_forward);
+  robot.normalizeConfiguration(q_backward);
   robot.normalizeConfiguration(q_left);
   robot.normalizeConfiguration(q_right);
-  robot.normalizeConfiguration(q_forward);
   auto posture_cost = std::make_shared<idocp::sim::PostureCost>(robot);
   posture_cost->set_ref_standing(q_standing);
-  posture_cost->set_ref_left(q_forward);
-  posture_cost->set_ref_right(q_left);
-  posture_cost->set_ref_forward(q_right);
-  posture_cost->set_switch_time({1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0});
-  q_weight << 100, 100, 100, 100, 100, 100, 
+
+  posture_cost->set_ref_forward(q_forward);
+  posture_cost->set_ref_backward(q_backward);
+  posture_cost->set_ref_left(q_left);
+  posture_cost->set_ref_right(q_right);
+
+  posture_cost->set_switch_time({1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0});
+  q_weight << 100, 100, 100, 1000, 1000, 1000, 
               0.01, 0.01, 0.01,
               0.01, 0.01, 0.01,
               0.01, 0.01, 0.01,
@@ -154,8 +159,7 @@ int main(int argc, char *argv[]) {
   auto joint_velocity_upper  = std::make_shared<idocp::JointVelocityUpperLimit>(robot);
   auto joint_torques_lower   = std::make_shared<idocp::JointTorquesLowerLimit>(robot);
   auto joint_torques_upper   = std::make_shared<idocp::JointTorquesUpperLimit>(robot);
-  // const double mu = 0.7;
-  const double mu = 0.5;
+  const double mu = 0.5; // Set conservative value in constraints
   auto friction_cone         = std::make_shared<idocp::LinearizedFrictionCone>(robot, mu);
   constraints->push_back(joint_position_lower);
   constraints->push_back(joint_position_upper);
@@ -204,8 +208,7 @@ int main(int argc, char *argv[]) {
   const std::string sim_name = "posture";
   idocp::sim::idocpSim sim(path_to_raisim_activation_key, path_to_urdf_sim, path_to_log, sim_name);
   sim.setCallback(std::make_shared<MPCCallback>(robot, ocp_solver));
-  // const double simulation_time_in_sec = 7;
-  const double simulation_time_in_sec = 9;
+  const double simulation_time_in_sec = 10;
   const double sampling_period_in_sec = 0.0025;
   const double simulation_start_time_in_sec = 0;
   const bool visualization = true;

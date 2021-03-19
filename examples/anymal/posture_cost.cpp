@@ -12,9 +12,10 @@ PostureCost::PostureCost(const Robot& robot)
     dimv_(robot.dimv()),
     t_seq_(),
     q_standing_(Eigen::VectorXd::Zero(robot.dimq())),
+    q_forward_(Eigen::VectorXd::Zero(robot.dimq())),
+    q_backward_(Eigen::VectorXd::Zero(robot.dimq())),
     q_left_(Eigen::VectorXd::Zero(robot.dimq())),
     q_right_(Eigen::VectorXd::Zero(robot.dimq())),
-    q_forward_(Eigen::VectorXd::Zero(robot.dimq())),
     q_weight_(Eigen::VectorXd::Zero(robot.dimv())),
     qf_weight_(Eigen::VectorXd::Zero(robot.dimv())) {
 }
@@ -25,9 +26,10 @@ PostureCost::PostureCost()
     dimv_(0),
     t_seq_(0),
     q_standing_(),
+    q_forward_(),
+    q_backward_(),
     q_left_(),
     q_right_(),
-    q_forward_(),
     q_weight_(),
     qf_weight_() {
 }
@@ -47,6 +49,16 @@ void PostureCost::set_ref_standing(const Eigen::VectorXd& q_ref) {
 }
 
 
+void PostureCost::set_ref_forward(const Eigen::VectorXd& q_ref) {
+  q_forward_ = q_ref;
+}
+
+
+void PostureCost::set_ref_backward(const Eigen::VectorXd& q_ref) {
+  q_backward_ = q_ref;
+}
+
+
 void PostureCost::set_ref_left(const Eigen::VectorXd& q_ref) {
   q_left_ = q_ref;
 }
@@ -54,11 +66,6 @@ void PostureCost::set_ref_left(const Eigen::VectorXd& q_ref) {
 
 void PostureCost::set_ref_right(const Eigen::VectorXd& q_ref) {
   q_right_ = q_ref;
-}
-
-
-void PostureCost::set_ref_forward(const Eigen::VectorXd& q_ref) {
-  q_forward_ = q_ref;
 }
 
 

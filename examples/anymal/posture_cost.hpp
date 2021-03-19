@@ -38,11 +38,13 @@ public:
 
   void set_ref_standing(const Eigen::VectorXd& q_ref);
 
+  void set_ref_forward(const Eigen::VectorXd& q_ref);
+
+  void set_ref_backward(const Eigen::VectorXd& q_ref);
+
   void set_ref_left(const Eigen::VectorXd& q_ref);
 
   void set_ref_right(const Eigen::VectorXd& q_ref);
-
-  void set_ref_forward(const Eigen::VectorXd& q_ref);
 
   void set_switch_time(const std::vector<double>& t_seq);
 
@@ -93,19 +95,25 @@ public:
       q_ref = q_standing_;
     }
     else if (t < t_seq_[1]) {
-      q_ref = q_left_;
+      q_ref = q_forward_;
     }
     else if (t < t_seq_[2]) {
       q_ref = q_standing_;
     }
     else if (t < t_seq_[3]) {
-      q_ref = q_right_;
+      q_ref = q_backward_;
     }
     else if (t < t_seq_[4]) {
       q_ref = q_standing_;
     }
     else if (t < t_seq_[5]) {
-      q_ref = q_forward_;
+      q_ref = q_left_;
+    }
+    else if (t < t_seq_[6]) {
+      q_ref = q_standing_;
+    }
+    else if (t < t_seq_[7]) {
+      q_ref = q_right_;
     }
     else {
       q_ref = q_standing_;
@@ -115,7 +123,7 @@ public:
 private:
   int dimq_, dimv_;
   std::vector<double> t_seq_;
-  Eigen::VectorXd q_standing_, q_left_, q_right_, q_forward_, q_weight_, qf_weight_;
+  Eigen::VectorXd q_standing_, q_forward_, q_backward_, q_left_, q_right_, q_weight_, qf_weight_;
 
 };
 
