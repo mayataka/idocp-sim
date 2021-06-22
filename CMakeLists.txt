@@ -2,6 +2,11 @@ cmake_minimum_required(VERSION 3.1)
 project(idocp-sim CXX)
 set(CMAKE_CXX_STANDARD 11)
 
+#############
+## Options ##
+#############
+option(BUILD_EXAMPLES "Build examples" ON)
+
 ###########
 ## Build ##
 ###########
@@ -12,8 +17,6 @@ set(CMAKE_INSTALL_RPATH ${CMAKE_INSTALL_PREFIX}/lib)
 set(CMAKE_INSTALL_RPATH ${CMAKE_INSTALL_PREFIX}/lib)
 # find Eigen
 find_package(Eigen3 REQUIRED)
-# find Boost
-find_package(Boost COMPONENTS system filesystem REQUIRED)
 # find pinocchio
 find_package(pinocchio REQUIRED)
 # find raisim
@@ -32,10 +35,7 @@ add_library(
 target_link_libraries(
   ${PROJECT_NAME} 
   PUBLIC 
-  pthread
-  ${Boost_LIBRARIES}
   ${PINOCCHIO_LIBRARIES}
-  urdfdom_model
   raisim::raisim
   raisim::raisimOgre
 )
@@ -43,15 +43,14 @@ target_include_directories(
   ${PROJECT_NAME} 
   PUBLIC
   ${EIGEN3_INCLUDE_DIR}
-  ${Boost_INCLUDE_DIR}
   ${PINOCCHIO_INCLUDE_DIRS}
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
 )
 
-if (BUILD_EXAMPLE)
+if (BUILD_EXAMPLES)
   add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/examples)
-endif() # end if (TESTING)
+endif() # end if (BUILD_EXAMPLES)
 
 #############
 ## Install ##
@@ -83,4 +82,3 @@ add_library(
   ${PROJECT_NAME}::${PROJECT_NAME} 
   ALIAS ${PROJECT_NAME}
 )
-

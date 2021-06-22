@@ -95,6 +95,23 @@ double PostureCost::computeStageCost(
 }
 
 
+void PostureCost::computeStageCostDerivatives(
+    Robot& robot, CostFunctionData& data, const double t, const double dt, 
+    const SplitSolution& s, SplitKKTResidual& kkt_residual) const {
+  robot.dSubtractConfiguration_dqf(s.q, data.q_ref, data.J_qdiff);
+  kkt_residual.lq().noalias()
+      += dt * data.J_qdiff.transpose() * q_weight_.asDiagonal() * data.qdiff;
+}
+
+
+void PostureCost::computeStageCostHessian(
+    Robot& robot, CostFunctionData& data, const double t, const double dt, 
+    const SplitSolution& s, SplitKKTMatrix& kkt_matrix) const {
+  kkt_matrix.Qqq().noalias()
+      += dt * data.J_qdiff.transpose() * q_weight_.asDiagonal() * data.J_qdiff;
+}
+
+
 double PostureCost::computeTerminalCost(
     Robot& robot, CostFunctionData& data, const double t, 
     const SplitSolution& s) const {
@@ -106,6 +123,23 @@ double PostureCost::computeTerminalCost(
 }
 
 
+void PostureCost::computeTerminalCostDerivatives(
+    Robot& robot, CostFunctionData& data, const double t, 
+    const SplitSolution& s, SplitKKTResidual& kkt_residual) const {
+  robot.dSubtractConfiguration_dqf(s.q, data.q_ref, data.J_qdiff);
+  kkt_residual.lq().noalias()
+      += data.J_qdiff.transpose() * qf_weight_.asDiagonal() * data.qdiff;
+}
+
+
+void PostureCost::computeTerminalCostHessian(
+    Robot& robot, CostFunctionData& data, const double t, 
+    const SplitSolution& s, SplitKKTMatrix& kkt_matrix) const {
+  kkt_matrix.Qqq().noalias()
+      += data.J_qdiff.transpose() * qf_weight_.asDiagonal() * data.J_qdiff;
+}
+
+
 double PostureCost::computeImpulseCost(
     Robot& robot, CostFunctionData& data, const double t, 
     const ImpulseSplitSolution& s) const {
@@ -113,52 +147,10 @@ double PostureCost::computeImpulseCost(
 }
 
 
-void PostureCost::computeStageCostDerivatives(
-    Robot& robot, CostFunctionData& data, const double t, const double dt, 
-    const SplitSolution& s, SplitKKTResidual& kkt_residual) const {
-  compute_q_ref(robot, t, data.q_ref);
-  robot.subtractConfiguration(s.q, data.q_ref, data.qdiff);
-  robot.dSubtractdConfigurationPlus(s.q, data.q_ref, data.J_qdiff);
-  kkt_residual.lq().noalias()
-      += dt * data.J_qdiff.transpose() * q_weight_.asDiagonal() * data.qdiff;
-}
-
-
-void PostureCost::computeTerminalCostDerivatives(
-    Robot& robot, CostFunctionData& data, const double t, 
-    const SplitSolution& s, SplitKKTResidual& kkt_residual) const {
-  compute_q_ref(robot, t, data.q_ref);
-  robot.subtractConfiguration(s.q, data.q_ref, data.qdiff);
-  robot.dSubtractdConfigurationPlus(s.q, data.q_ref, data.J_qdiff);
-  kkt_residual.lq().noalias()
-      += data.J_qdiff.transpose() * qf_weight_.asDiagonal() * data.qdiff;
-}
-
-
 void PostureCost::computeImpulseCostDerivatives(
     Robot& robot, CostFunctionData& data, const double t, 
     const ImpulseSplitSolution& s, 
     ImpulseSplitKKTResidual& kkt_residual) const {
-}
-
-
-void PostureCost::computeStageCostHessian(
-    Robot& robot, CostFunctionData& data, const double t, const double dt, 
-    const SplitSolution& s, SplitKKTMatrix& kkt_matrix) const {
-  compute_q_ref(robot, t, data.q_ref);
-  robot.dSubtractdConfigurationPlus(s.q, data.q_ref, data.J_qdiff);
-  kkt_matrix.Qqq().noalias()
-      += dt * data.J_qdiff.transpose() * q_weight_.asDiagonal() * data.J_qdiff;
-}
-
-
-void PostureCost::computeTerminalCostHessian(
-    Robot& robot, CostFunctionData& data, const double t, 
-    const SplitSolution& s, SplitKKTMatrix& kkt_matrix) const {
-  compute_q_ref(robot, t, data.q_ref);
-  robot.dSubtractdConfigurationPlus(s.q, data.q_ref, data.J_qdiff);
-  kkt_matrix.Qqq().noalias()
-      += data.J_qdiff.transpose() * qf_weight_.asDiagonal() * data.J_qdiff;
 }
 
 
