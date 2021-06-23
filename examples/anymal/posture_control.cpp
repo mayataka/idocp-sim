@@ -204,8 +204,8 @@ int main(int argc, char *argv[]) {
   ocp_solver.setSolution("f", f_init);
   ocp_solver.initConstraints(t);
 
-  if (argc != 3) {
-    std::cout << "argment must be: ./posture APSOLUTE_PAHT_TO_RAISIM_ACTIVATION_KEY APSOLUTE_PATH_TO_URDF_FOR_RAISIM" << std::endl;
+  if (argc != 2) {
+    std::cout << "argment must be: ./posture APSOLUTE_PAHT_TO_RAISIM_ACTIVATION_KEY" << std::endl;
     std::exit(1);
   }
 
