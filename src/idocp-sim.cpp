@@ -1,5 +1,6 @@
 #include "idocp-sim/idocp-sim.hpp"
 
+#include <boost/filesystem.hpp>
 #include "pinocchio/parsers/urdf.hpp"
 
 #include "raisim/World.hpp"
@@ -14,8 +15,8 @@ idocpSim::idocpSim(const std::string& path_to_raisim_activation_key,
                    const std::string& path_to_urdf, 
                    const std::string& path_to_log, 
                    const std::string& sim_name)
-  : path_to_raisim_activation_key_(path_to_raisim_activation_key), 
-    path_to_urdf_(path_to_urdf), 
+  : path_to_raisim_activation_key_(boost::filesystem::absolute(path_to_raisim_activation_key).string()), 
+    path_to_urdf_(boost::filesystem::absolute(path_to_urdf).string()), 
     path_to_log_(path_to_log), 
     sim_name_(sim_name),
     logger_(path_to_log, sim_name),
@@ -106,6 +107,13 @@ void idocpSim::runSim(const double simulation_time_in_sec,
   rai_robot->setState(q_rai, v_rai);
   rai_robot->setGeneralizedForce(u_rai);
   if (visualization && recording) {
+    if (!boost::filesystem::exists(path_to_log_)) {
+      boost::system::error_code error;
+      const bool result = boost::filesystem::create_directory(path_to_log_, error);
+      if (!result || error) {
+        std::cout << "Failed to create the log directory" << std::endl;
+      }
+    }
     rai_vis->startRecordingVideo(path_to_log_+"/"+sim_name_+".mp4");
   }
   std::chrono::system_clock::time_point start_clock, end_clock;

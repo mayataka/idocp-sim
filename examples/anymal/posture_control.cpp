@@ -205,7 +205,7 @@ int main(int argc, char *argv[]) {
   ocp_solver.initConstraints(t);
 
   if (argc != 2) {
-    std::cout << "argment must be: ./posture_control APSOLUTE_PAHT_TO_RAISIM_ACTIVATION_KEY" << std::endl;
+    std::cout << "argment must be: ./posture_control PATH_TO_RAISIM_ACTIVATION_KEY" << std::endl;
     std::exit(1);
   }
 
