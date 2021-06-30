@@ -2,6 +2,7 @@
 
 #include <assert.h>
 
+
 namespace idocp {
 namespace sim {
 

@@ -5,7 +5,7 @@
 #include "Eigen/Core"
 
 #include "idocp/robot/robot.hpp"
-#include "idocp/ocp/ocp_solver.hpp"
+#include "idocp/solver/ocp_solver.hpp"
 #include "idocp/cost/cost_function.hpp"
 #include "idocp/cost/configuration_space_cost.hpp"
 #include "idocp/cost/time_varying_configuration_space_cost.hpp"
@@ -16,7 +16,7 @@
 #include "idocp/constraints/joint_velocity_upper_limit.hpp"
 #include "idocp/constraints/joint_torques_lower_limit.hpp"
 #include "idocp/constraints/joint_torques_upper_limit.hpp"
-#include "idocp/constraints/linearized_friction_cone.hpp"
+#include "idocp/constraints/friction_cone.hpp"
 
 #include "idocp-sim/idocp-sim.hpp"
 
@@ -82,9 +82,15 @@ private:
 
 
 int main(int argc, char *argv[]) {
-  std::vector<int> contact_frames = {14, 24, 34, 44}; // LF, LH, RF, RH
+  const int LF_foot_id = 12;
+  const int LH_foot_id = 22;
+  const int RF_foot_id = 32;
+  const int RH_foot_id = 42;
+  std::vector<int> contact_frames = {LF_foot_id, LH_foot_id, RF_foot_id, RH_foot_id}; // LF, LH, RF, RH
   const std::string path_to_urdf = "../../../examples/anymal/anymal_b_simple_description/urdf/anymal.urdf";
-  idocp::Robot robot(path_to_urdf, contact_frames);
+  const double baumgarte_time_step = 1.0/20;
+  idocp::Robot robot(path_to_urdf, idocp::BaseJointType::FloatingBase, 
+                     contact_frames, baumgarte_time_step);
 
   auto cost = std::make_shared<idocp::CostFunction>();
   Eigen::VectorXd q_standing(Eigen::VectorXd::Zero(robot.dimq()));
@@ -112,6 +118,7 @@ int main(int argc, char *argv[]) {
   config_cost->set_q_ref(q_ref);
   cost->push_back(config_cost);
 
+  // posture refs 
   Eigen::VectorXd q_standing_ref = q_standing;
   Eigen::VectorXd q_forward = q_standing;
   Eigen::VectorXd q_backward = q_standing;
@@ -160,7 +167,7 @@ int main(int argc, char *argv[]) {
   auto joint_torques_lower   = std::make_shared<idocp::JointTorquesLowerLimit>(robot);
   auto joint_torques_upper   = std::make_shared<idocp::JointTorquesUpperLimit>(robot);
   const double mu = 0.5; // Set conservative value in constraints
-  auto friction_cone         = std::make_shared<idocp::LinearizedFrictionCone>(robot, mu);
+  auto friction_cone         = std::make_shared<idocp::FrictionCone>(robot, mu);
   constraints->push_back(joint_position_lower);
   constraints->push_back(joint_position_upper);
   constraints->push_back(joint_velocity_lower);
@@ -197,16 +204,15 @@ int main(int argc, char *argv[]) {
   ocp_solver.setSolution("f", f_init);
   ocp_solver.initConstraints(t);
 
-  if (argc != 3) {
-    std::cout << "argment must be: ./posture APSOLUTE_PAHT_TO_RAISIM_ACTIVATION_KEY APSOLUTE_PATH_TO_URDF_FOR_RAISIM" << std::endl;
+  if (argc != 2) {
+    std::cout << "argment must be: ./posture_control PATH_TO_RAISIM_ACTIVATION_KEY" << std::endl;
     std::exit(1);
   }
 
   const std::string path_to_raisim_activation_key = argv[1];
-  const std::string path_to_urdf_sim = argv[2];
   const std::string path_to_log = "sim_results";
   const std::string sim_name = "posture";
-  idocp::sim::idocpSim sim(path_to_raisim_activation_key, path_to_urdf_sim, path_to_log, sim_name);
+  idocp::sim::idocpSim sim(path_to_raisim_activation_key, path_to_urdf, path_to_log, sim_name);
   sim.setCallback(std::make_shared<MPCCallback>(robot, ocp_solver));
   const double simulation_time_in_sec = 10;
   const double sampling_period_in_sec = 0.0025;
